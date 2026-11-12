@@ -1,7 +1,8 @@
 {
   "name": "章平アプリ",
   "short_name": "章平アプリ",
-  "start_url": "./index.html",
+  "id": "/shohei-app-v2",
+  "start_url": "./index.html?app=2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f3ead8",
