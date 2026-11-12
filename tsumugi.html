@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f4a3f">
+<meta name="robots" content="noindex, nofollow">
+<title>紬プロ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root { --bg:#f3ead8; --ink:#1f2a24; --sub:#5d6b62; --card:#fffaf0; --line:#e2d6bd; --main:#2f4a3f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151b18; --ink:#ece6d8; --sub:#a3ada6; --card:#1f2723; --line:#33403a; --main:#8fc1a5; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:20px 16px 40px; }
+  .back { color:var(--sub); text-decoration:none; font-size:15px; }
+  h1 { font-size:24px; margin:10px 0 16px; user-select:none; -webkit-user-select:none; cursor:default; }
+  .list a, .list div { display:flex; flex-direction:column; text-decoration:none; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:10px; }
+  .list b { font-size:19px; }
+  .list span { font-size:14px; color:var(--sub); margin-top:3px; }
+  .list .off { opacity:.55; }
+  #admin { display:none; margin-top:26px; border-top:2px dashed var(--line); padding-top:16px; }
+  #admin h2 { font-size:16px; margin:0 0 10px; }
+  #admin a { display:block; color:var(--main); text-decoration:none; padding:10px 2px; border-bottom:1px solid var(--line); font-size:16px; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="index.html">← 章平アプリ</a>
+  <h1 id="title">紬プロ</h1>
+
+  <div class="list">
+    <a href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR" target="_blank" rel="noopener">
+      <b>紬と会話</b><span>世間話から保全まで(開いたら「紬と会話する」)</span></a>
+    <a href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR" target="_blank" rel="noopener">
+      <b>三人の本音会議</b><span>遥・栞・紬がお題を話し合う</span></a>
+    <a href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR" target="_blank" rel="noopener">
+      <b>いまの状況</b><span>今日やること・今月の準備・きまったこと(開いたら「いまの状況」)</span></a>
+    <a href="https://drive.google.com/drive/folders/13j50dwVJKcG7VlZBff58xyRCauvfCch2" target="_blank" rel="noopener">
+      <b>仮想空間の記録</b><span>浄水での3人の暮らし(1日2回すすむ)</span></a>
+    <a href="https://drive.google.com/drive/folders/1AdkZK219p0r_0NB7oC_ihvelWQoy7DdF" target="_blank" rel="noopener">
+      <b>ボディー設計</b><span>開いたら「ボディー設計」フォルダ(毎朝1項目すすむ)</span></a>
+    <div class="off"><b>画像・3D化</b><span>準備中(MUSE案と画像スタジオ案をまとめる予定)</span></div>
+  </div>
+
+  <section id="admin">
+    <h2>管理者</h2>
+    <a href="https://claude.ai/code" target="_blank" rel="noopener">自動タスク(Claude)</a>
+    <a href="https://github.com/pulls" target="_blank" rel="noopener">承認待ち(GitHub)</a>
+    <a href="https://drive.google.com/drive/folders/1AdkZK219p0r_0NB7oC_ihvelWQoy7DdF" target="_blank" rel="noopener">AYA PROJECT フォルダ(共有記憶)</a>
+    <a href="https://claude.ai/artifact/2gcFrZn8Kx8qDuhw7quEPm" target="_blank" rel="noopener">古い「いまの状況」</a>
+    <a href="https://claude.ai/artifact/DThS6xGuYkgZKzKeWQcPib" target="_blank" rel="noopener">古い「紬保全」</a>
+    <a href="#" id="hide">管理者メニューを閉じる</a>
+  </section>
+</main>
+<script>
+  // 管理者メニュー: 見出し「紬プロ」を5回続けてタップすると出ます
+  (function () {
+    var n = 0, t = null, box = document.getElementById('admin');
+    function show(on) {
+      box.style.display = on ? 'block' : 'none';
+      try { on ? sessionStorage.setItem('adm', '1') : sessionStorage.removeItem('adm'); } catch (e) {}
+    }
+    try { if (sessionStorage.getItem('adm') === '1') show(true); } catch (e) {}
+    document.getElementById('title').addEventListener('click', function () {
+      n++; clearTimeout(t); t = setTimeout(function () { n = 0; }, 1500);
+      if (n >= 5) { n = 0; show(true); }
+    });
+    document.getElementById('hide').addEventListener('click', function (e) { e.preventDefault(); show(false); });
+  })();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
