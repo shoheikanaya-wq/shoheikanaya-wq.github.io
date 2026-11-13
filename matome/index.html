@@ -30,6 +30,7 @@
   #moves { display:flex; flex-direction:column; gap:8px; }
   .next { display:block; background:#1F3A5F; color:#fff; border-radius:16px; padding:18px; text-decoration:none; }
   .how { font-size:13px; color:#444; line-height:1.6; background:#FFF7ED; border-radius:10px; padding:10px 12px; }
+  .why { font-size:13px; color:#333; line-height:1.5; margin-top:2px; }
   .state { font-size:12px; font-weight:700; margin-top:2px; }
   .state.ok { color:#15803D; } .state.ng { color:#B91C1C; }
   .next .sub { color:#DCE6F2; }
@@ -134,7 +135,9 @@ function show(results, at, old) {
     if (p.draft) state = { cls: 'ng', txt: '下書き:先に「Ready for review」を押すとMergeが出ます', ok: false };
     else if (p.mergeable === false || p.mergeable_state === 'dirty') state = { cls: 'ng', txt: 'ほかの変更とぶつかっていてMergeできません(Claudeに「直して」と頼む)', ok: false };
     else if (p.mergeable == null) state = { cls: '', txt: '', ok: true };
-    waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at), state });
+    // PRの説明から【承認が必要な理由】と【おすすめ】を1行ずつ取り出す
+    const pick = key => { const m = String(p.body || '').match(new RegExp('【' + key + '】[ 　:：]*([^\\n]+)')); return m ? m[1].trim().slice(0, 80) : ''; };
+    waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at), state, why: pick('承認が必要な理由'), rec: pick('おすすめ') });
   }));
   waits.sort((x, y) => x.at - y.at);
   const n = waits.length;
@@ -144,8 +147,9 @@ function show(results, at, old) {
     ? waits.map(w => {
         const days = Math.floor((at - w.at) / DAY);
         const late = days >= 3 ? '(' + days + '日前から)' : '';
+        const why = '<div class="why">' + (w.why ? '理由: ' + esc(w.why) : '理由の説明がまだありません(次の自動更新で見直します)') + (w.rec ? '<br>おすすめ: ' + esc(w.rec) : '') + '</div>';
         const st = w.state.txt ? '<div class="state ' + w.state.cls + '">' + esc(w.state.txt) + '</div>' : '';
-        return '<a class="item" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + st + '</div><b>見る ›</b></a>';
+        return '<a class="item" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + why + st + '</div><b>見る ›</b></a>';
       }).join('')
     : '<div class="gray">ありません</div>';
   if (oldCount) $('waitList').innerHTML += '<div class="gray" style="font-size:13px;margin-top:8px">ほかに、10月の古い作業中の変更案が' + oldCount + '件あります(承認しなくて大丈夫です)。</div>';
