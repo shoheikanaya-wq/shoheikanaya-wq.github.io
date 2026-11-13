@@ -125,7 +125,11 @@ async function load() {
 
 function show(results, at, old) {
   const waits = [];
+  let oldCount = 0;
   results.forEach(a => a.open.forEach(p => {
+    // 自動更新の変更案(auto/)か、14日以内のものだけを承認待ちにする。古い作業中のものは数だけ
+    const fresh = (p.head && p.head.ref && p.head.ref.startsWith('auto/')) || (at - new Date(p.created_at)) < 14 * DAY;
+    if (!fresh) { oldCount++; return; }
     let state = { cls: 'ok', txt: 'Mergeできます', ok: true };
     if (p.draft) state = { cls: 'ng', txt: '下書き:先に「Ready for review」を押すとMergeが出ます', ok: false };
     else if (p.mergeable === false || p.mergeable_state === 'dirty') state = { cls: 'ng', txt: 'ほかの変更とぶつかっていてMergeできません(Claudeに「直して」と頼む)', ok: false };
@@ -144,6 +148,7 @@ function show(results, at, old) {
         return '<a class="item" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + st + '</div><b>見る ›</b></a>';
       }).join('')
     : '<div class="gray">ありません</div>';
+  if (oldCount) $('waitList').innerHTML += '<div class="gray" style="font-size:13px;margin-top:8px">ほかに、10月の古い作業中の変更案が' + oldCount + '件あります(承認しなくて大丈夫です)。</div>';
 
   $('moves').innerHTML = results.filter(a => a.repo !== 'shoheikanaya-wq.github.io' || a.merged.length).map(a => {
     const m = a.merged.length;
