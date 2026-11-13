@@ -28,7 +28,10 @@
   .gray { color:#555; }
   a.back { display:inline-flex; align-items:center; min-height:44px; color:#1F3A5F; font-weight:700; text-decoration:none; font-size:15px; margin-bottom:-8px; }
   #moves { display:flex; flex-direction:column; gap:8px; }
-  .next { background:#1F3A5F; color:#fff; border-radius:16px; padding:18px; }
+  .next { display:block; background:#1F3A5F; color:#fff; border-radius:16px; padding:18px; text-decoration:none; }
+  .how { font-size:13px; color:#444; line-height:1.6; background:#FFF7ED; border-radius:10px; padding:10px 12px; }
+  .state { font-size:12px; font-weight:700; margin-top:2px; }
+  .state.ok { color:#15803D; } .state.ng { color:#B91C1C; }
   .next .sub { color:#DCE6F2; }
   .next p { margin:6px 0 0; font-size:17px; font-weight:700; line-height:1.5; }
   a.tsumugi { color:#1F3A5F; font-weight:700; }
@@ -47,6 +50,7 @@
   <section class="card wait">
     <div class="head"><h2>承認待ち</h2><span class="badge" id="count">…</span></div>
     <div id="waitList"><div class="gray">読み込み中…</div></div>
+    <div class="how" id="how" hidden>承認のしかた: 「見る」→ ページを<b>一番下まで</b>スクロール → 緑の「Merge pull request」→「Confirm merge」。ボタンが無いときは、右上の「Sign in」でGitHubにログインしてください。</div>
   </section>
 
   <section class="card">
@@ -55,10 +59,10 @@
     <div class="row"><span class="nm">紬プロ</span><a class="tsumugi" href="../tsumugi.html">いまの状況で見る ›</a></div>
   </section>
 
-  <section class="next">
+  <a class="next" id="nextBox">
     <div class="sub">次の一歩</div>
     <p id="next">…</p>
-  </section>
+  </a>
 
   <div class="foot">
     <div id="updated">　</div>
@@ -99,6 +103,10 @@ async function load() {
         getJson(base + '?state=closed&sort=updated&direction=desc&per_page=30')
       ]);
       const merged = closed.filter(p => p.merged_at && new Date(p.merged_at) >= from);
+      // 承認待ちは1件ずつ、Mergeできる状態かを確かめる
+      for (const p of open) {
+        try { const d = await getJson(base + '/' + p.number); p.mergeable = d.mergeable; p.mergeable_state = d.mergeable_state; } catch (e) {}
+      }
       return { ...a, open, merged };
     }));
     try { localStorage.setItem('matome', JSON.stringify({ at: now.toISOString(), results })); } catch (e) {}
@@ -110,14 +118,20 @@ async function load() {
     else {
       $('waitList').innerHTML = '<div class="gray">いまは読み込めませんでした。少しあとで「最新にする」を押してください。</div>';
       $('count').textContent = '?';
-      $('next').textContent = 'あとで開き直してください';
+      $('next').textContent = 'あとで「最新にする」を押してください';
     }
   }
 }
 
 function show(results, at, old) {
   const waits = [];
-  results.forEach(a => a.open.forEach(p => waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at) })));
+  results.forEach(a => a.open.forEach(p => {
+    let state = { cls: 'ok', txt: 'Mergeできます', ok: true };
+    if (p.draft) state = { cls: 'ng', txt: '下書き:先に「Ready for review」を押すとMergeが出ます', ok: false };
+    else if (p.mergeable === false || p.mergeable_state === 'dirty') state = { cls: 'ng', txt: 'ほかの変更とぶつかっていてMergeできません(Claudeに「直して」と頼む)', ok: false };
+    else if (p.mergeable == null) state = { cls: '', txt: '', ok: true };
+    waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at), state });
+  }));
   waits.sort((x, y) => x.at - y.at);
   const n = waits.length;
   $('count').textContent = n + '件';
@@ -126,7 +140,8 @@ function show(results, at, old) {
     ? waits.map(w => {
         const days = Math.floor((at - w.at) / DAY);
         const late = days >= 3 ? '(' + days + '日前から)' : '';
-        return '<a class="item" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div></div><b>見る ›</b></a>';
+        const st = w.state.txt ? '<div class="state ' + w.state.cls + '">' + esc(w.state.txt) + '</div>' : '';
+        return '<a class="item" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + st + '</div><b>見る ›</b></a>';
       }).join('')
     : '<div class="gray">ありません</div>';
 
@@ -136,9 +151,16 @@ function show(results, at, old) {
     return '<div class="row"><span class="nm">' + esc(a.name) + '</span><span>' + txt + '</span></div>';
   }).join('');
 
-  $('next').textContent = n
-    ? '承認待ち' + n + '件を見る(「見る」→ 緑の Merge を押すだけ)'
-    : '今週の承認はありません。ゆっくりで大丈夫です';
+  $('how').hidden = !n;
+  const first = waits.find(w => w.state.ok) || waits[0];
+  const box = $('nextBox');
+  if (first) {
+    box.href = first.url; box.target = '_blank'; box.rel = 'noopener';
+    $('next').textContent = (first.state.ok ? '「' + first.title + '」を承認する ›' : '「' + first.title + '」を確かめる ›');
+  } else {
+    box.removeAttribute('href'); box.removeAttribute('target');
+    $('next').textContent = '今週の承認はありません。ゆっくりで大丈夫です';
+  }
   const t = at.getHours() + ':' + String(at.getMinutes()).padStart(2, '0');
   $('updated').textContent = (old ? '前回の内容です ・ ' : '') + '最終更新 ' + md(at) + ' ' + t;
 }
