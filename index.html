@@ -23,12 +23,23 @@
   h2 { font-size:15px; color:var(--sub); margin:0 0 8px; font-weight:600; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .grid a { display:block; text-decoration:none; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 12px; font-size:17px; font-weight:600; text-align:center; }
+  .matome { display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:56px; text-decoration:none; color:var(--ink); background:var(--card); border:2px solid var(--line); border-radius:14px; padding:12px 16px; margin-bottom:16px; }
+  .matome.wait { border-color:#C2410C; }
+  .matome b { font-size:18px; }
+  .matome span { font-size:15px; font-weight:700; }
+  .matome.wait span { color:#C2410C; }
+  @media (prefers-color-scheme: dark) { .matome.wait span { color:#F59E6B; } .matome.wait { border-color:#F59E6B; } }
   .note { color:var(--sub); font-size:13px; margin-top:24px; line-height:1.6; }
 </style>
 </head>
 <body>
 <main>
   <h1>章平アプリ</h1>
+
+  <a class="matome" id="matome" href="matome/index.html">
+    <b>今週のまとめ</b>
+    <span id="matomeWait">見る ›</span>
+  </a>
 
   <a class="big" href="tsumugi.html">
     <b>紬プロ</b>
@@ -46,6 +57,18 @@
   <p class="note">紬プロの中身を開くときは、Claude や Google のログインが必要です。</p>
 </main>
 <script>
+  // 今週のまとめ: 承認待ちの件数だけ数えて表示(読めなければ「見る ›」のまま)
+  (async () => {
+    const repos = ['tokai-pan-map', 'korean-learning-app', 'english-learning-app', 'ssr-temperature-app-public', 'shoheikanaya-wq.github.io'];
+    try {
+      const lists = await Promise.all(repos.map(r =>
+        fetch('https://api.github.com/repos/shoheikanaya-wq/' + r + '/pulls?state=open&per_page=30')
+          .then(res => { if (!res.ok) throw 0; return res.json(); })));
+      const n = lists.reduce((s, l) => s + l.length, 0);
+      document.getElementById('matomeWait').textContent = n ? '承認待ち ' + n + '件 ›' : '承認待ちなし ›';
+      if (n) document.getElementById('matome').classList.add('wait');
+    } catch (e) {}
+  })();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
