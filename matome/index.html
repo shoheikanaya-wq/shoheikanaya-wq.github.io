@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3A5F">
+<meta name="robots" content="noindex, nofollow">
+<title>今週のまとめ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#F5F4EF; color:#1C1C1C; font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:24px 20px 32px; display:flex; flex-direction:column; gap:16px; min-height:100vh; }
+  .sub { font-size:13px; color:#555; }
+  h1 { margin:2px 0 0; font-size:28px; }
+  h2 { margin:0; font-size:18px; }
+  .card { background:#fff; border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:10px; }
+  .wait { border:2px solid #C2410C; }
+  .head { display:flex; justify-content:space-between; align-items:center; }
+  .badge { background:#C2410C; color:#fff; font-weight:700; border-radius:999px; padding:4px 12px; font-size:15px; }
+  .badge.zero { background:#15803D; }
+  a.item { display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:48px; text-decoration:none; color:#1C1C1C; border-top:1px solid #E7E5DF; padding-top:8px; }
+  a.item b { color:#9A3412; white-space:nowrap; font-size:14px; }
+  .app { font-size:12px; color:#555; }
+  .ttl { font-size:15px; font-weight:500; }
+  .row { display:flex; gap:10px; align-items:baseline; font-size:15px; }
+  .row .nm { width:92px; flex-shrink:0; font-weight:700; }
+  .gray { color:#555; }
+  #moves { display:flex; flex-direction:column; gap:8px; }
+  .next { background:#1F3A5F; color:#fff; border-radius:16px; padding:18px; }
+  .next .sub { color:#DCE6F2; }
+  .next p { margin:6px 0 0; font-size:17px; font-weight:700; line-height:1.5; }
+  a.tsumugi { color:#1F3A5F; font-weight:700; }
+  .foot { margin-top:auto; text-align:center; font-size:12px; color:#555; }
+  button { font:inherit; font-size:14px; border:1px solid #CFCAC0; background:#fff; border-radius:10px; padding:10px 16px; min-height:44px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <div class="sub" id="range">章平アプリ</div>
+    <h1>今週のまとめ</h1>
+  </div>
+
+  <section class="card wait">
+    <div class="head"><h2>承認待ち</h2><span class="badge" id="count">…</span></div>
+    <div id="waitList"><div class="gray">読み込み中…</div></div>
+  </section>
+
+  <section class="card">
+    <h2>今週の動き</h2>
+    <div id="moves"></div>
+    <div class="row"><span class="nm">紬プロ</span><a class="tsumugi" href="../tsumugi.html">いまの状況で見る ›</a></div>
+  </section>
+
+  <section class="next">
+    <div class="sub">次の一歩</div>
+    <p id="next">…</p>
+  </section>
+
+  <div class="foot">
+    <div id="updated">　</div>
+    <p><button type="button" id="reload">最新にする</button></p>
+  </div>
+</main>
+
+<script>
+// 見るアプリ(GitHubの公開リポジトリ)。増やすときはここに1行足すだけ
+const OWNER = 'shoheikanaya-wq';
+const APPS = [
+  { repo: 'tokai-pan-map', name: 'ぷらっと東海' },
+  { repo: 'korean-learning-app', name: '韓国語' },
+  { repo: 'english-learning-app', name: '英語' },
+  { repo: 'ssr-temperature-app-public', name: 'SSR温測' },
+  { repo: 'shoheikanaya-wq.github.io', name: '章平アプリ' }
+];
+const DAY = 24 * 60 * 60 * 1000;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const md = d => (d.getMonth() + 1) + '/' + d.getDate();
+
+async function getJson(url) {
+  const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function load() {
+  const now = new Date();
+  const from = new Date(now - 7 * DAY);
+  $('range').textContent = '章平アプリ ・ ' + md(from) + '〜' + md(now);
+  try {
+    const results = await Promise.all(APPS.map(async a => {
+      const base = 'https://api.github.com/repos/' + OWNER + '/' + a.repo + '/pulls';
+      const [open, closed] = await Promise.all([
+        getJson(base + '?state=open&per_page=30'),
+        getJson(base + '?state=closed&sort=updated&direction=desc&per_page=30')
+      ]);
+      const merged = closed.filter(p => p.merged_at && new Date(p.merged_at) >= from);
+      return { ...a, open, merged };
+    }));
+    try { localStorage.setItem('matome', JSON.stringify({ at: now.toISOString(), results })); } catch (e) {}
+    show(results, now, false);
+  } catch (e) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('matome')); } catch (e2) {}
+    if (saved) show(saved.results, new Date(saved.at), true);
+    else {
+      $('waitList').innerHTML = '<div class="gray">いまは読み込めませんでした。少しあとで「最新にする」を押してください。</div>';
+      $('count').textContent = '?';
+      $('next').textContent = 'あとで開き直してください';
+    }
+  }
+}
+
+function show(results, at, old) {
+  const waits = [];
+  results.forEach(a => a.open.forEach(p => waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at) })));
+  waits.sort((x, y) => x.at - y.at);
+  const n = waits.length;
+  $('count').textContent = n + '件';
+  $('count').className = 'badge' + (n ? '' : ' zero');
+  $('waitList').innerHTML = n
+    ? waits.map(w => {
+        const days = Math.floor((at - w.at) / DAY);
+        const late = days >= 3 ? '(' + days + '日前から)' : '';
+        return '<a class="item" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div></div><b>見る ›</b></a>';
+      }).join('')
+    : '<div class="gray">ありません</div>';
+
+  $('moves').innerHTML = results.filter(a => a.repo !== 'shoheikanaya-wq.github.io' || a.merged.length).map(a => {
+    const m = a.merged.length;
+    const txt = m ? esc(a.merged[0].title) + (m > 1 ? ' ほか' + (m - 1) + '件' : '') : '<span class="gray">変更なし</span>';
+    return '<div class="row"><span class="nm">' + esc(a.name) + '</span><span>' + txt + '</span></div>';
+  }).join('');
+
+  $('next').textContent = n
+    ? '承認待ち' + n + '件を見る(「見る」→ 緑の Merge を押すだけ)'
+    : '今週の承認はありません。ゆっくりで大丈夫です';
+  const t = at.getHours() + ':' + String(at.getMinutes()).padStart(2, '0');
+  $('updated').textContent = (old ? '前回の内容です ・ ' : '') + '最終更新 ' + md(at) + ' ' + t;
+}
+
+$('reload').addEventListener('click', load);
+load();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
+</script>
+</body>
+</html>
