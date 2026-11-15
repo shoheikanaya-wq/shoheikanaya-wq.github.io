@@ -15,8 +15,8 @@
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif; }
   main { max-width:520px; margin:0 auto; padding:20px 16px 40px; }
-  h1 { font-size:24px; margin:8px 0 18px; user-select:none; }
-  .big { display:block; text-decoration:none; color:#fff; background:var(--main); border-radius:16px; padding:22px 20px; margin-bottom:22px; }
+  h1 { font-size:24px; margin:8px 0 18px; user-select:none; -webkit-user-select:none; cursor:default; }
+  .big { display:block; text-decoration:none; color:#fff; background:var(--main); border-radius:16px; padding:18px 20px; margin-bottom:10px; }
   @media (prefers-color-scheme: dark) { .big { color:#10160f; } }
   .big b { display:block; font-size:24px; }
   .big span { font-size:15px; opacity:.85; }
@@ -29,22 +29,39 @@
   .matome span { font-size:15px; font-weight:700; }
   .matome.wait span { color:#C2410C; }
   @media (prefers-color-scheme: dark) { .matome.wait span { color:#F59E6B; } .matome.wait { border-color:#F59E6B; } }
+  .grid.sub { margin-bottom:22px; }
+  .grid .off { display:block; color:var(--sub); background:var(--card); border:1px dashed var(--line); border-radius:12px; padding:16px 12px; font-size:17px; font-weight:600; text-align:center; opacity:.7; }
+  .grid small { display:block; font-size:12px; font-weight:400; color:var(--sub); margin-top:2px; }
   .note { color:var(--sub); font-size:13px; margin-top:24px; line-height:1.6; }
+  #admin { display:none; margin-top:26px; border-top:2px dashed var(--line); padding-top:16px; }
+  #admin h2 { font-size:16px; margin:0 0 10px; color:var(--ink); }
+  #admin a { display:block; color:var(--main); text-decoration:none; padding:10px 2px; border-bottom:1px solid var(--line); font-size:16px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>章平アプリ</h1>
+  <h1 id="title">章平アプリ</h1>
 
   <a class="matome" id="matome" href="matome/index.html">
     <b>今週のまとめ</b>
     <span id="matomeWait">見る ›</span>
   </a>
 
-  <a class="big" href="tsumugi.html">
-    <b>紬プロ</b>
-    <span>遥・栞・紬 — 紬と会話・本音会議・いまの状況・仮想空間・ボディー設計</span>
+  <a class="big" href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR#tsumugi" target="_blank" rel="noopener">
+    <b>紬と会話</b>
+    <span>世間話から保全まで</span>
   </a>
+  <a class="big" href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR#status" target="_blank" rel="noopener">
+    <b>今日やること</b>
+    <span>いまの状況 — アンドロイド起動に向けて</span>
+  </a>
+
+  <div class="grid sub">
+    <a href="https://claude.ai/artifact/SebKHuBL6YSze2dmWktxvR" target="_blank" rel="noopener">三人の本音会議</a>
+    <a href="https://drive.google.com/drive/folders/13j50dwVJKcG7VlZBff58xyRCauvfCch2" target="_blank" rel="noopener">仮想空間の記録</a>
+    <a href="https://drive.google.com/drive/folders/1fJnJSqhlEckHkSGQEr6_eXjYY5mycq9R" target="_blank" rel="noopener">ボディー設計</a>
+    <span class="off">画像・3D化<small>準備中</small></span>
+  </div>
 
   <h2>ほかのアプリ(それぞれ単独でも使えます)</h2>
   <div class="grid">
@@ -54,7 +71,17 @@
     <a href="/ssr-temperature-app-public/">SSR温測</a>
   </div>
 
-  <p class="note">紬プロの中身を開くときは、Claude や Google のログインが必要です。</p>
+  <p class="note">遥・栞・紬の項目を開くときは、Claude や Google のログインが必要です。</p>
+
+  <section id="admin">
+    <h2>管理者</h2>
+    <a href="https://claude.ai/code" target="_blank" rel="noopener">自動タスク(Claude)</a>
+    <a href="https://github.com/pulls" target="_blank" rel="noopener">承認待ち(GitHub)</a>
+    <a href="https://drive.google.com/drive/folders/1AdkZK219p0r_0NB7oC_ihvelWQoy7DdF" target="_blank" rel="noopener">AYA PROJECT フォルダ(共有記憶)</a>
+    <a href="https://claude.ai/artifact/2gcFrZn8Kx8qDuhw7quEPm" target="_blank" rel="noopener">古い「いまの状況」</a>
+    <a href="https://claude.ai/artifact/DThS6xGuYkgZKzKeWQcPib" target="_blank" rel="noopener">古い「紬保全」</a>
+    <a href="#" id="hide">管理者メニューを閉じる</a>
+  </section>
 </main>
 <script>
   // 今週のまとめ: 承認待ちの件数だけ数えて表示(読めなければ「見る ›」のまま)
@@ -68,6 +95,20 @@
       document.getElementById('matomeWait').textContent = n ? '承認待ち ' + n + '件 ›' : '承認待ちなし ›';
       if (n) document.getElementById('matome').classList.add('wait');
     } catch (e) {}
+  })();
+  // 管理者メニュー: 見出し「章平アプリ」を5回続けてタップすると出ます
+  (function () {
+    var n = 0, t = null, box = document.getElementById('admin');
+    function show(on) {
+      box.style.display = on ? 'block' : 'none';
+      try { on ? sessionStorage.setItem('adm', '1') : sessionStorage.removeItem('adm'); } catch (e) {}
+    }
+    try { if (sessionStorage.getItem('adm') === '1') show(true); } catch (e) {}
+    document.getElementById('title').addEventListener('click', function () {
+      n++; clearTimeout(t); t = setTimeout(function () { n = 0; }, 1500);
+      if (n >= 5) { n = 0; show(true); }
+    });
+    document.getElementById('hide').addEventListener('click', function (e) { e.preventDefault(); show(false); });
   })();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
