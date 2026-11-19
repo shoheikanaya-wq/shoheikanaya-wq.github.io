@@ -37,6 +37,12 @@
   .next p { margin:6px 0 0; font-size:17px; font-weight:700; line-height:1.5; }
   a.tsumugi { color:#1F3A5F; font-weight:700; }
   .foot { margin-top:auto; text-align:center; font-size:12px; color:#555; }
+  .tag { display:inline-block; font-size:12px; font-weight:700; border-radius:999px; padding:2px 10px; margin-bottom:4px; }
+  .tag.need { background:#C2410C; color:#fff; }
+  .tag.rec { background:#15803D; color:#fff; }
+  .tag.skip { background:#E7E5DF; color:#444; }
+  .tag.fix { background:#B91C1C; color:#fff; }
+  a.item.skipped { opacity:.75; }
   button { font:inherit; font-size:14px; border:1px solid #CFCAC0; background:#fff; border-radius:10px; padding:10px 16px; min-height:44px; }
 </style>
 </head>
@@ -137,19 +143,30 @@ function show(results, at, old) {
     else if (p.mergeable == null) state = { cls: '', txt: '', ok: true };
     // PRの説明から【承認が必要な理由】と【おすすめ】を1行ずつ取り出す
     const pick = key => { const m = String(p.body || '').match(new RegExp('【' + key + '】[ 　:：]*([^\\n]+)')); return m ? m[1].trim().slice(0, 80) : ''; };
-    waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at), state, why: pick('承認が必要な理由'), rec: pick('おすすめ') });
+    const rec = pick('おすすめ');
+    // 2026-11-20 追加: 承認待ちの見分け。【おすすめ】の書き方で4つに分ける
+    //  need=承認が要る(おすすめ未記入) / rec=承認してよい / skip=承認しなくてよい / fix=先に直しが要る
+    let kind = 'need';
+    if (!state.ok) kind = 'fix';
+    else if (/見送り|承認しなくて|しなくてよい|しなくていい|不要|閉じて|閉じる|保留|待って|まだ早/.test(rec)) kind = 'skip';
+    else if (/承認してよい|承認して大丈夫|承認がよい|承認をおすすめ|おすすめします/.test(rec)) kind = 'rec';
+    waits.push({ app: a.name, title: p.title, url: p.html_url, at: new Date(p.created_at), state, why: pick('承認が必要な理由'), rec, kind });
   }));
-  waits.sort((x, y) => x.at - y.at);
+  const ORDER = { rec: 0, need: 1, fix: 2, skip: 3 };
+  const TAG = { rec: '承認してOK', need: '承認が必要(中身を見て判断)', fix: '先に直しが必要', skip: '承認しなくてOK' };
+  waits.sort((x, y) => (ORDER[x.kind] - ORDER[y.kind]) || (x.at - y.at));
   const n = waits.length;
-  $('count').textContent = n + '件';
-  $('count').className = 'badge' + (n ? '' : ' zero');
+  const needN = waits.filter(w => w.kind !== 'skip').length;
+  const skipN = n - needN;
+  $('count').textContent = needN + '件' + (skipN ? ' (+しなくてOK ' + skipN + ')' : '');
+  $('count').className = 'badge' + (needN ? '' : ' zero');
   $('waitList').innerHTML = n
     ? waits.map(w => {
         const days = Math.floor((at - w.at) / DAY);
         const late = days >= 3 ? '(' + days + '日前から)' : '';
         const why = '<div class="why">' + (w.why ? '理由: ' + esc(w.why) : '理由の説明がまだありません(次の自動更新で見直します)') + (w.rec ? '<br>おすすめ: ' + esc(w.rec) : '') + '</div>';
         const st = w.state.txt ? '<div class="state ' + w.state.cls + '">' + esc(w.state.txt) + '</div>' : '';
-        return '<a class="item" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + why + st + '</div><b>見る ›</b></a>';
+        return '<a class="item' + (w.kind === 'skip' ? ' skipped' : '') + '" target="_blank" rel="noopener" href="' + esc(w.url) + '"><div><span class="tag ' + w.kind + '">' + TAG[w.kind] + '</span><div class="app">' + esc(w.app) + esc(late) + '</div><div class="ttl">' + esc(w.title) + '</div>' + why + st + '</div><b>見る ›</b></a>';
       }).join('')
     : '<div class="gray">ありません</div>';
   if (oldCount) $('waitList').innerHTML += '<div class="gray" style="font-size:13px;margin-top:8px">ほかに、10月の古い作業中の変更案が' + oldCount + '件あります(承認しなくて大丈夫です)。</div>';
@@ -160,15 +177,15 @@ function show(results, at, old) {
     return '<div class="row"><span class="nm">' + esc(a.name) + '</span><span>' + txt + '</span></div>';
   }).join('');
 
-  $('how').hidden = !n;
-  const first = waits.find(w => w.state.ok) || waits[0];
+  $('how').hidden = !needN;
+  const first = waits.find(w => w.kind === 'rec') || waits.find(w => w.kind === 'need') || waits.find(w => w.kind === 'fix');
   const box = $('nextBox');
   if (first) {
     box.href = first.url; box.target = '_blank'; box.rel = 'noopener';
     $('next').textContent = (first.state.ok ? '「' + first.title + '」を承認する ›' : '「' + first.title + '」を確かめる ›');
   } else {
     box.removeAttribute('href'); box.removeAttribute('target');
-    $('next').textContent = '今週の承認はありません。ゆっくりで大丈夫です';
+    $('next').textContent = skipN ? '承認が必要なものはありません(しなくてOKのものだけです)' : '今週の承認はありません。ゆっくりで大丈夫です';
   }
   const t = at.getHours() + ':' + String(at.getMinutes()).padStart(2, '0');
   $('updated').textContent = (old ? '前回の内容です ・ ' : '') + '最終更新 ' + md(at) + ' ' + t;
